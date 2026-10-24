@@ -1,0 +1,46 @@
+name: Build bad_query IPA
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: Download source
+        uses: actions/checkout@v4
+
+      - name: Check Xcode
+        run: xcodebuild -version
+
+      - name: Build iOS App
+        run: |
+          xcodebuild \
+            -project bad_query.xcodeproj \
+            -scheme bad_query \
+            -configuration Release \
+            -sdk iphoneos \
+            -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO \
+            build
+
+      - name: Package IPA
+        run: |
+          APP=$(find build/Build/Products/Release-iphoneos \
+            -maxdepth 1 -name "*.app" -type d | head -n 1)
+
+          if [ -z "$APP" ]; then
+            echo "No .app file found"
+            exit 1
+          fi
+
+          mkdir -p Payload
+          cp -R "$APP" Payload/
+          zip -r bad_query-unsigned.ipa Payload
+
+      - name: Upload IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: bad_query-IPA
+          path: bad_query-unsigned.ipa
